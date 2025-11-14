@@ -4,17 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/gwkeo/avito-test/internal/dto"
+	internal_http "github.com/gwkeo/avito-test/internal/http"
 	"github.com/gwkeo/avito-test/internal/storage"
 )
-
-func wrap(message string, err error) string {
-	return fmt.Sprintf("%s: %s", message, err.Error())
-}
 
 type updater interface {
 	UpdateFlag(ctx context.Context, userId string, flag bool) (dto.User, error)
@@ -41,7 +37,7 @@ func (h *UsersHandler) HandleSetIsActive(w http.ResponseWriter, r *http.Request)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, wrap("unable to read request body", err), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapToJSON(err.Error(), "unable to read request body"), http.StatusBadRequest)
 		return
 	}
 
@@ -51,17 +47,24 @@ func (h *UsersHandler) HandleSetIsActive(w http.ResponseWriter, r *http.Request)
 	}
 	var rs *isActiveRequest
 	if err := json.Unmarshal(body, &rs); err != nil {
-		http.Error(w, wrap("specified json not valid", err), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapToJSON(err.Error(), "specified json is not valid"), http.StatusBadRequest)
+		return
 	}
 
 	user, err := h.updater.UpdateFlag(ctx, rs.UserId, rs.IsActive)
 	if err != nil {
-		http.Error(w, wrap("http", err), http.StatusInternalServerError)
+		if errors.Is(err, storage.ErrNotFound) {
+			http.Error(w, internal_http.WrapToJSON(err.Error(), "resource not found"), http.StatusNotFound)
+			return
+		}
+		http.Error(w, internal_http.WrapToJSON(err.Error(), "unable to update flag"), http.StatusInternalServerError)
+		return
 	}
 
 	response, err := json.Marshal(user)
 	if err != nil {
-		http.Error(w, wrap("http", err), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapToJSON(err.Error(), "error while marshaling json"), http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -74,29 +77,32 @@ func (h *UsersHandler) HandleGetReview(w http.ResponseWriter, r *http.Request) {
 	UserId := r.URL.Query().Get("user_id")
 	if UserId == "" {
 		http.Error(w, "user_id not specified", http.StatusBadRequest)
-	}
-
-	prs, err := h.prGetter.UsersPRList(ctx, UserId)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			http.Error(w, wrap("user_id not found", err), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, wrap("pr", err), http.StatusInternalServerError)
 		return
 	}
 
-	type responsetPRs struct {
+	prList, err := h.prGetter.UsersPRList(ctx, UserId)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			http.Error(w, internal_http.WrapToJSON(err.Error(), "resource not found"), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, internal_http.WrapToJSON(err.Error(), "unable to get PR list"), http.StatusInternalServerError)
+		return
+	}
+
+	type responsePRs struct {
 		UserId       string                 `json:"user_id"`
 		PullRequests []dto.PullRequestShort `json:"pull_requests"`
 	}
-	var rprs responsetPRs
+	responsePRList := &responsePRs{
+		UserId:       UserId,
+		PullRequests: prList,
+	}
 
-	rprs.PullRequests = prs
-	rprs.UserId = UserId
-	response, err := json.Marshal(rprs)
+	response, err := json.Marshal(responsePRList)
 	if err != nil {
-		http.Error(w, wrap("error marshaling json", err), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapToJSON(err.Error(), "unable to marshal response"), http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
