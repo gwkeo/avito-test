@@ -12,23 +12,18 @@ import (
 	"github.com/gwkeo/avito-test/internal/storage"
 )
 
-type updater interface {
-	UpdateFlag(ctx context.Context, userId string, flag bool) (models.User, error)
-}
-
-type prGetter interface {
+type userService interface {
+	UpdateFlag(ctx context.Context, userId string, flag bool) (*models.User, error)
 	UsersPRList(ctx context.Context, userId string) ([]models.PullRequestShort, error)
 }
 
 type UserHandler struct {
-	updater
-	prGetter
+	userService
 }
 
-func NewUserHandler(updater updater, prGetter prGetter) *UserHandler {
+func NewUserHandler(userService userService) *UserHandler {
 	return &UserHandler{
-		updater:  updater,
-		prGetter: prGetter,
+		userService: userService,
 	}
 }
 
@@ -51,7 +46,7 @@ func (h *UserHandler) HandleSetIsActive(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, err := h.updater.UpdateFlag(ctx, rs.UserId, rs.IsActive)
+	user, err := h.userService.UpdateFlag(ctx, rs.UserId, rs.IsActive)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)
@@ -80,7 +75,7 @@ func (h *UserHandler) HandleGetReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prList, err := h.prGetter.UsersPRList(ctx, UserId)
+	prList, err := h.userService.UsersPRList(ctx, UserId)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusBadRequest)

@@ -26,10 +26,6 @@ merged_at
 
 */
 
-type UserRepository interface {
-
-}
-
 type Storage struct {
 	db *pgx.Conn
 }

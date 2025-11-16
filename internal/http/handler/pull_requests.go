@@ -12,33 +12,23 @@ import (
 	"github.com/gwkeo/avito-test/internal/storage"
 )
 
-type creator interface {
-	Create(ctx context.Context, ID, name, authorID string) (models.PullRequest, error)
+type pullRequestService interface {
+	Create(ctx context.Context, ID, name, authorID string) (*models.PullRequest, error)
+	Merge(ctx context.Context, ID string) (*models.PullRequest, error)
+	Reassign(ctx context.Context, ID, oldReviewerID string) (*models.PullRequest, string, error)
 }
 
-type merger interface {
-	Merge(ctx context.Context, ID string) (models.PullRequest, error)
+type PullRequestHandler struct {
+	pullRequestService
 }
 
-type reassigner interface {
-	Reassign(ctx context.Context, ID, oldReviewerID string) (models.PullRequest, string, error)
-}
-
-type PRHandler struct {
-	creator
-	merger
-	reassigner
-}
-
-func NewPRHandler(creator creator, merger merger, reassigner reassigner) *PRHandler {
-	return &PRHandler{
-		creator:    creator,
-		merger:     merger,
-		reassigner: reassigner,
+func NewPRHandler(pullRequestService pullRequestService) *PullRequestHandler {
+	return &PullRequestHandler{
+		pullRequestService: pullRequestService,
 	}
 }
 
-func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
+func (h *PullRequestHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	body, err := io.ReadAll(r.Body)
@@ -60,7 +50,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pr, err := h.creator.Create(ctx, cr.PRID, cr.PRName, cr.AuthorID)
+	pr, err := h.pullRequestService.Create(ctx, cr.PRID, cr.PRName, cr.AuthorID)
 	if err != nil {
 		if errors.Is(err, storage.ErrPRExists) {
 			http.Error(w, internal_http.Wrap(err.Error(), "PR id already exists"), http.StatusConflict)
@@ -76,7 +66,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		PR models.PullRequest `json:"pr"`
 	}
 	response := PRCreateResponse{
-		PR: pr,
+		PR: *pr,
 	}
 	responseBody, err := json.Marshal(response)
 	if err != nil {
@@ -88,7 +78,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseBody)
 }
 
-func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
+func (h *PullRequestHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	body, err := io.ReadAll(r.Body)
@@ -108,7 +98,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pr, err := h.merger.Merge(ctx, mr.PRID)
+	pr, err := h.pullRequestService.Merge(ctx, mr.PRID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)
@@ -123,7 +113,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prmerge := prMergeResponse{
-		PR: pr,
+		PR: *pr,
 	}
 
 	responseBody, err := json.Marshal(prmerge)
@@ -136,7 +126,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseBody)
 }
 
-func (h *PRHandler) ReassignPR(w http.ResponseWriter, r *http.Request) {
+func (h *PullRequestHandler) ReassignPR(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	body, err := io.ReadAll(r.Body)
@@ -156,7 +146,7 @@ func (h *PRHandler) ReassignPR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pr, replacedBy, err := h.reassigner.Reassign(ctx, rr.PRID, rr.OldReviewerID)
+	pr, replacedBy, err := h.pullRequestService.Reassign(ctx, rr.PRID, rr.OldReviewerID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)
@@ -175,7 +165,7 @@ func (h *PRHandler) ReassignPR(w http.ResponseWriter, r *http.Request) {
 		ReplacedBy string             `json:"replace_by"`
 	}
 	response := responsePRReassign{
-		PR:         pr,
+		PR:         *pr,
 		ReplacedBy: replacedBy,
 	}
 	responseBody, err := json.Marshal(&response)

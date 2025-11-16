@@ -12,18 +12,18 @@ import (
 	"github.com/gwkeo/avito-test/internal/storage"
 )
 
-type TeamService interface {
-	Add(ctx context.Context, team models.Team) (models.Team, error)
-	Team(ctx context.Context, teamName string) (models.Team, error)
+type teamService interface {
+	Add(ctx context.Context, team *models.Team) (*models.Team, error)
+	Team(ctx context.Context, teamName string) (*models.Team, error)
 }
 
 type TeamsHandler struct {
-	TeamService
+	teamService
 }
 
-func New(teamService TeamService) *TeamsHandler {
+func NewTeamsHandler(teamService teamService) *TeamsHandler {
 	return &TeamsHandler{
-		TeamService: teamService,
+		teamService: teamService,
 	}
 }
 
@@ -43,7 +43,7 @@ func (h *TeamsHandler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err = h.TeamService.Add(ctx, team)
+	updatedTeam, err := h.teamService.Add(ctx, &team)
 	if err != nil {
 		if errors.Is(err, storage.ErrTeamExists) {
 			http.Error(w, internal_http.Wrap(err.Error(), "team_name already exists"), http.StatusBadRequest)
@@ -57,7 +57,7 @@ func (h *TeamsHandler) Add(w http.ResponseWriter, r *http.Request) {
 		Team models.Team `json:"team"`
 	}
 	resp := &response{
-		Team: team,
+		Team: *updatedTeam,
 	}
 
 	responseBody, err := json.Marshal(resp)
@@ -79,7 +79,7 @@ func (h *TeamsHandler) Team(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.TeamService.Team(ctx, teamName)
+	team, err := h.teamService.Team(ctx, teamName)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)

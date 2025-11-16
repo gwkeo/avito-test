@@ -12,7 +12,33 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       retries: 5
       timeout: 3s
+
+  migrate:
+    container_name: migrate
+    build: 
+      context: .
+      dockerfile: Dockerfile.migrate
+    env_file: .env
+    environment:
+      CONNECTION_STRING: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    container_name: app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      CONNECTION_STRING: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+    expose:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
