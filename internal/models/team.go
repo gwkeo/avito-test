@@ -1,6 +1,6 @@
 package models
 
 type Team struct {
-	Id   int64
-	Name string
+	TeamName string       `json:"team_name"`
+	Members  []TeamMember `json:"members"`
 }
