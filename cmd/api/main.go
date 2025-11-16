@@ -56,13 +56,13 @@ func setupRoutes(
 	mux := http.NewServeMux()
 
 	userMux := http.NewServeMux()
-	mux.Handle("/users/", http.StripPrefix("/users", userMux))
+	mux.Handle("/user/", http.StripPrefix("/user", userMux))
 
 	userMux.HandleFunc("/getReview", usersHandler.HandleGetReview)
 	userMux.HandleFunc("/setIsActive", usersHandler.HandleSetIsActive)
 
 	teamMux := http.NewServeMux()
-	mux.Handle("/teams/", http.StripPrefix("/teams", teamMux))
+	mux.Handle("/team/", http.StripPrefix("/team", teamMux))
 
 	teamMux.HandleFunc("/add", teamsHandler.Add)
 	teamMux.HandleFunc("/get", teamsHandler.Team)

@@ -37,8 +37,8 @@ services:
     env_file: .env
     environment:
       CONNECTION_STRING: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
-    expose:
-      - "8080:8080"
     depends_on:
       migrate:
         condition: service_completed_successfully
+    ports:
+      - "8080:8080"
