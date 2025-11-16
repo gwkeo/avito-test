@@ -6,18 +6,18 @@ import (
 
 func Wrap(errCode, message string) string {
 	type wrappedError struct {
-		code    string
-		message string
+		Code    string `json:"code"`
+		Message string `json:"message"`
 	}
 
 	type errMessage struct {
-		error wrappedError
+		Error wrappedError `json:"error"`
 	}
 
 	v := errMessage{
-		error: wrappedError{
-			code:    errCode,
-			message: message,
+		Error: wrappedError{
+			Code:    errCode,
+			Message: message,
 		},
 	}
 
@@ -31,16 +31,16 @@ func Wrap(errCode, message string) string {
 
 func WrapWithoutCode(message string) string {
 	type wrappedError struct {
-		message string
+		Message string `json:"message"`
 	}
 
 	type errMessage struct {
-		error wrappedError
+		Error wrappedError `json:"error"`
 	}
 
 	v := errMessage{
-		error: wrappedError{
-			message: message,
+		Error: wrappedError{
+			Message: message,
 		},
 	}
 
