@@ -17,13 +17,13 @@ func (s *Storage) AddTeam(ctx context.Context, team *models.Team) (*models.Team,
 	defer tx.Rollback(ctx)
 
 	for _, member := range team.Members {
-		_, err := tx.Query(ctx, "INSERT INTO users VALUES (?, ?, ?, ?)", member.UserID, member.Username, team.TeamName, member.IsActive)
+		_, err := tx.Query(ctx, "INSERT INTO users VALUES ($1, $2, $3, $4)", member.UserID, member.Username, team.TeamName, member.IsActive)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, err = tx.Query(ctx, "INSERT INTO teams VALUES name = ?", team.TeamName)
+	_, err = tx.Query(ctx, "INSERT INTO teams VALUES name = $1", team.TeamName)
 	if err != nil {
 		return nil, err
 	}
@@ -35,14 +35,14 @@ func (s *Storage) AddTeam(ctx context.Context, team *models.Team) (*models.Team,
 
 func (s *Storage) Team(ctx context.Context, teamName string) (*models.Team, error) {
 	var team models.Team
-	if err := s.db.QueryRow(ctx, "SELECT name FROM teams WHERE name = ?", teamName).Scan(&team.TeamName); err != nil {
+	if err := s.db.QueryRow(ctx, "SELECT name FROM teams WHERE name = $1", teamName).Scan(&team.TeamName); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
 	}
 
-	rows, err := s.db.Query(ctx, "SELECT (id, username, is_active) FROM users WHERE team_name = ?", teamName)
+	rows, err := s.db.Query(ctx, "SELECT (id, username, is_active) FROM users WHERE team_name = $1", teamName)
 	if err != nil {
 		return nil, err
 	}

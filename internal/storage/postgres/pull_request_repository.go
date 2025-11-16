@@ -11,14 +11,14 @@ import (
 
 func (s *Storage) PullRequest(ctx context.Context, pullRequestID string) (*models.PullRequest, error) {
 	var pr models.PullRequest
-	if err := s.db.QueryRow(ctx, "SELECT * FROM pull_requests WHERE id = ?", pullRequestID).Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &pr.CreatedAt, &pr.MergedAt); err != nil {
+	if err := s.db.QueryRow(ctx, "SELECT * FROM pull_requests WHERE id = $1", pullRequestID).Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &pr.CreatedAt, &pr.MergedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
 	}
 
-	rows, err := s.db.Query(ctx, "SELECT * FROM reviewers WHERE pull_request_id = ?", pullRequestID)
+	rows, err := s.db.Query(ctx, "SELECT * FROM reviewers WHERE pull_request_id = $1", pullRequestID)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 
 	var pr models.PullRequest
 	if err := tx.QueryRow(ctx,
-		"INSERT INTO pull_requests VALUES id = ?, name = ?, author_id = ?, status = ?",
+		"INSERT INTO pull_requests VALUES id = $1, name = $2, author_id = $3, status = $4",
 		pullRequestID,
 		pullRequestName,
 		authorID,

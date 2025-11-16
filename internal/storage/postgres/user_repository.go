@@ -9,13 +9,13 @@ import (
 
 func (s *Storage) SetIsUserActive(ctx context.Context, userID string, isActive bool) (*models.User, error) {
 	var id string
-	s.db.QueryRow(ctx, "UPDATE users SET is_active = ? WHERE id = ?", isActive, userID).Scan(&id)
+	s.db.QueryRow(ctx, "UPDATE users SET is_active = $1 WHERE id = $2", isActive, userID).Scan(&id)
 
 	if id == "" {
 		return nil, storage.ErrNotFound
 	}
 
-	rows, err := s.db.Query(ctx, "SELECT * FROM users WHERE id = ?", userID)
+	rows, err := s.db.Query(ctx, "SELECT * FROM users WHERE id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,11 @@ func (s *Storage) SetIsUserActive(ctx context.Context, userID string, isActive b
 }
 
 func (s *Storage) UsersReviews(ctx context.Context, userID string) ([]models.PullRequestShort, error) {
-	rows, err := s.db.Query(ctx, "SELECT pr.id AS pull_request_id, pr.name AS pull_request_name, pr.author_id, ps.status FROM pull_requests pr JOIN reviewers r ON pr.id = r.pull_request_id WHERE reviewer_id = ?", userID)
+	rows, err := s.db.Query(
+		ctx,
+		"SELECT pr.id AS pull_request_id, pr.name AS pull_request_name, pr.author_id, ps.status FROM pull_requests pr JOIN reviewers r ON pr.id = r.pull_request_id WHERE reviewer_id = $1",
+		userID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +53,7 @@ func (s *Storage) UsersReviews(ctx context.Context, userID string) ([]models.Pul
 }
 
 func (s *Storage) User(ctx context.Context, userID string) (*models.User, error) {
-	rows, err := s.db.Query(ctx, "SELECT * FROM users WHERE id = ?", userID)
+	rows, err := s.db.Query(ctx, "SELECT * FROM users WHERE id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
