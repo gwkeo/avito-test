@@ -41,6 +41,8 @@ func main() {
 		Handler: mux,
 	}
 
+	log.Println("started at ")
+
 	if err = server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
@@ -54,23 +56,23 @@ func setupRoutes(
 	mux := http.NewServeMux()
 
 	userMux := http.NewServeMux()
-	mux.Handle("/users", userMux)
+	mux.Handle("/users/", http.StripPrefix("/users", userMux))
 
 	userMux.HandleFunc("/getReview", usersHandler.HandleGetReview)
 	userMux.HandleFunc("/setIsActive", usersHandler.HandleSetIsActive)
 
 	teamMux := http.NewServeMux()
-	mux.Handle("/teams", teamMux)
+	mux.Handle("/teams/", http.StripPrefix("/teams", teamMux))
 
 	teamMux.HandleFunc("/add", teamsHandler.Add)
 	teamMux.HandleFunc("/get", teamsHandler.Team)
 
-	pullRequestMux := http.NewServeMux()
-	mux.Handle("/pullRequest", pullRequestMux)
+	prMux := http.NewServeMux()
+	mux.Handle("/pullRequest/", http.StripPrefix("/pullRequest", prMux))
 
-	pullRequestMux.HandleFunc("/create", pullRequestHandler.CreatePR)
-	pullRequestMux.HandleFunc("/merge", pullRequestHandler.MergePR)
-	pullRequestMux.HandleFunc("/reassign", pullRequestHandler.ReassignPR)
+	prMux.HandleFunc("/create", pullRequestHandler.CreatePR)
+	prMux.HandleFunc("/merge", pullRequestHandler.MergePR)
+	prMux.HandleFunc("/reassign", pullRequestHandler.ReassignPR)
 
 	return mux
 }
