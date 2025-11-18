@@ -52,7 +52,7 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 }
 func (s *Storage) MergePullRequest(ctx context.Context, pullRequestID string) (*models.PullRequest, error) {
 	status := ""
-	err := s.db.QueryRow(ctx, "SELECT id, status FROM pull_requests WHERE id = $1", pullRequestID).Scan(&status)
+	err := s.db.QueryRow(ctx, "SELECT status FROM pull_requests WHERE id = $1", pullRequestID).Scan(&status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, storage.ErrNotFound
