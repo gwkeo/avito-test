@@ -1,6 +1,6 @@
 package storage
 
 const (
-	PullRequestStateMerged = "MERGED"
-	PullRequestStateOpen   = "OPEN"
+	PullRequestStatusMerged = "MERGED"
+	PullRequestStatusOpen   = "OPEN"
 )

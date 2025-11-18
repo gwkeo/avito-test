@@ -9,35 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Storage) PullRequest(ctx context.Context, pullRequestID string) (*models.PullRequest, error) {
-	var pr models.PullRequest
-	if err := s.db.QueryRow(ctx, "SELECT * FROM pull_requests WHERE id = $1", pullRequestID).Scan(&pr.PullRequestID, &pr.PullRequestName, &pr.AuthorID, &pr.Status, &pr.CreatedAt, &pr.MergedAt); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, storage.ErrNotFound
-		}
-		return nil, err
-	}
-
-	rows, err := s.db.Query(ctx, "SELECT * FROM reviewers WHERE pull_request_id = $1", pullRequestID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var reviewers []string
-	for rows.Next() {
-		id := ""
-		if err = rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		reviewers = append(reviewers, id)
-	}
-
-	pr.AssignedReviewers = reviewers
-
-	return &pr, nil
-}
-
 func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequestName, authorID string, assignedReviewers []string) (*models.PullRequest, error) {
 
 	tx, err := s.db.Begin(ctx)
@@ -52,7 +23,7 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 		pullRequestID,
 		pullRequestName,
 		authorID,
-		storage.PullRequestStateOpen,
+		storage.PullRequestStatusOpen,
 	).Scan(
 		&pr.PullRequestID,
 		&pr.PullRequestName,
@@ -79,41 +50,107 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 	tx.Commit(ctx)
 	return &pr, nil
 }
-
 func (s *Storage) MergePullRequest(ctx context.Context, pullRequestID string) (*models.PullRequest, error) {
-	if _, err := s.db.Exec(ctx,
-		"UPDATE pull_requests SET state = $1, merged_at = NOW() WHERE id = $2",
-		storage.PullRequestStateMerged,
+	status := ""
+	err := s.db.QueryRow(ctx, "SELECT id, status FROM pull_requests WHERE id = $1", pullRequestID).Scan(&status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, storage.ErrNotFound
+		}
+		return nil, err
+	}
+
+	if status == storage.PullRequestStatusMerged {
+		return nil, storage.ErrPRMerged
+	}
+
+	var pr models.PullRequest
+	if err := s.db.QueryRow(ctx,
+		"UPDATE pull_requests SET status = $1, merged_at = NOW() WHERE id = $2 RETURNING id, name, author_id, status, created_at, merged_at",
+		storage.PullRequestStatusMerged,
 		pullRequestID,
+	).Scan(
+		&pr.PullRequestID,
+		&pr.PullRequestName,
+		&pr.AuthorID,
+		&pr.Status,
+		&pr.CreatedAt,
+		&pr.MergedAt,
 	); err != nil {
 		return nil, err
 	}
 
-	pr, err := s.PullRequest(ctx, pullRequestID)
+	rows, err := s.db.Query(ctx, "SELECT reviewer_id FROM reviewers WHERE pull_request_id = $1", pullRequestID)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	return pr, nil
+	var reviewers []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		reviewers = append(reviewers, id)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	pr.AssignedReviewers = reviewers
+	return &pr, nil
 }
 
 func (s *Storage) ReassignPullRequest(ctx context.Context, pullRequestID, oldReviewerID, newReviewerID string) (*models.PullRequest, string, error) {
+	_, err := s.db.Exec(ctx, "SELECT pull_request_id FROM pull_requests WHERE id = $1", pullRequestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", storage.ErrNotFound
+		}
+		return nil, "", err
+	}
 
-	_, err := s.db.Exec(
+	var pr models.PullRequest
+	err = s.db.QueryRow(
 		ctx,
-		"UPDATE reviewers SET reviewer_id = $1 WHERE reviewer_id = $2 AND pull_request_id = $3",
+		"UPDATE reviewers SET reviewer_id = $1 WHERE reviewer_id = $2 AND pull_request_id = $3 RETURNING id, name, author_id, status, created_at, merged_at",
 		newReviewerID,
 		oldReviewerID,
 		pullRequestID,
+	).Scan(
+		&pr.PullRequestID,
+		&pr.PullRequestName,
+		&pr.AuthorID,
+		&pr.Status,
+		&pr.CreatedAt,
+		&pr.MergedAt,
 	)
 	if err != nil {
 		return nil, "", err
 	}
 
-	pr, err := s.PullRequest(ctx, pullRequestID)
+	rows, err := s.db.Query(ctx, "SELECT reviewer_id FROM reviewers WHERE pull_request_id = $1", pullRequestID)
 	if err != nil {
 		return nil, "", err
 	}
+	defer rows.Close()
 
-	return pr, newReviewerID, nil
+	var reviewers []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, "", err
+		}
+		reviewers = append(reviewers, id)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, "", err
+	}
+
+	pr.AssignedReviewers = reviewers
+
+	return &pr, newReviewerID, nil
 }
