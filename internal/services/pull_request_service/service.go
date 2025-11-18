@@ -2,6 +2,8 @@ package pull_request_service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/gwkeo/avito-test/internal/models"
 	"github.com/gwkeo/avito-test/internal/storage"
@@ -48,6 +50,9 @@ func New(
 func (s *PullRequestService) usersTeamActiveMembersExceptHim(ctx context.Context, userID string) ([]string, error) {
 	user, err := s.userService.User(ctx, userID)
 	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, fmt.Errorf("unable to find author: %v", err.Error())
+		}
 		return nil, err
 	}
 
@@ -63,7 +68,7 @@ func (s *PullRequestService) usersTeamActiveMembersExceptHim(ctx context.Context
 	// команды хоть раз ревьюили
 	for _, v := range usersTeamsActiveMembers {
 		if v.UserID != userID {
-			reviewers[reviewersCount] = v.UserID
+			reviewers = append(reviewers, v.UserID)
 			reviewersCount++
 		}
 		if reviewersCount == MAX_REVIEWERS_COUNT {
@@ -83,7 +88,10 @@ func (s *PullRequestService) Create(ctx context.Context, ID, name, authorID stri
 
 	reviewers, err := s.usersTeamActiveMembersExceptHim(ctx, authorID)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, fmt.Errorf("create pull request service: %v", err.Error())
+		}
+		return nil, fmt.Errorf("create pull request service: %v", err.Error())
 	}
 
 	return s.pullRequestRepository.CreatePullRequest(ctx, ID, name, authorID, reviewers)

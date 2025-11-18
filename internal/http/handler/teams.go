@@ -32,14 +32,14 @@ func (h *TeamsHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to read request body"), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapWithoutCode("unable to read request body", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	var team models.Team
 	err = json.Unmarshal(body, &team)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to parse request body"), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapWithoutCode("unable to parse request body", err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (h *TeamsHandler) Add(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, internal_http.Wrap(err.Error(), "team_name already exists"), http.StatusBadRequest)
 			return
 		}
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to add team"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to add team", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *TeamsHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 	responseBody, err := json.Marshal(resp)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to create JSON"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to create JSON", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (h *TeamsHandler) Team(w http.ResponseWriter, r *http.Request) {
 
 	teamName := r.URL.Query().Get("team_name")
 	if teamName == "" {
-		http.Error(w, internal_http.WrapWithoutCode("team_name not specified"), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapMessageOnly("team_name not specified"), http.StatusBadRequest)
 		return
 	}
 
@@ -85,15 +85,15 @@ func (h *TeamsHandler) Team(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)
 			return
 		}
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to get team"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to get team", err.Error()), http.StatusInternalServerError)
 	}
 
 	responseBody, err := json.Marshal(team)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to craete JSON"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to craete JSON", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 	w.Write(responseBody)
 }

@@ -33,7 +33,7 @@ func (h *PullRequestHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to read request body"), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapWithoutCode("unable to read request body", err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *PullRequestHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	var cr createRequest
 	err = json.Unmarshal(body, &cr)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), ""), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to parse json body", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -59,7 +59,8 @@ func (h *PullRequestHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)
 			return
 		}
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to create PR"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to create PR", err.Error()), http.StatusInternalServerError)
+		return
 	}
 
 	type PRCreateResponse struct {
@@ -70,7 +71,7 @@ func (h *PullRequestHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	}
 	responseBody, err := json.Marshal(response)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to create JSON"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to create JSON", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -83,7 +84,7 @@ func (h *PullRequestHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), ""), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapWithoutCode("unable to read body", err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -94,7 +95,7 @@ func (h *PullRequestHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	var mr mergeRequest
 	err = json.Unmarshal(body, &mr)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to parse JSON"), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapWithoutCode("unable to parse JSON", err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -104,7 +105,7 @@ func (h *PullRequestHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, internal_http.Wrap(err.Error(), "resource not found"), http.StatusNotFound)
 			return
 		}
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to merge pull request"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to merge pull request", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -118,7 +119,7 @@ func (h *PullRequestHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 
 	responseBody, err := json.Marshal(prmerge)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to create JSON"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to create JSON", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -131,7 +132,7 @@ func (h *PullRequestHandler) ReassignPR(w http.ResponseWriter, r *http.Request) 
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to read request body"), http.StatusBadRequest)
+		http.Error(w, internal_http.WrapWithoutCode("unable to read request body", err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -156,7 +157,7 @@ func (h *PullRequestHandler) ReassignPR(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, internal_http.Wrap(err.Error(), "cannot reassign on merged PR"), http.StatusConflict)
 			return
 		}
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to reassign merge reviewer"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to reassign merge reviewer", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -170,7 +171,7 @@ func (h *PullRequestHandler) ReassignPR(w http.ResponseWriter, r *http.Request) 
 	}
 	responseBody, err := json.Marshal(&response)
 	if err != nil {
-		http.Error(w, internal_http.Wrap(err.Error(), "unable to create JSON"), http.StatusInternalServerError)
+		http.Error(w, internal_http.WrapWithoutCode("unable to create JSON", err.Error()), http.StatusInternalServerError)
 		return
 	}
 

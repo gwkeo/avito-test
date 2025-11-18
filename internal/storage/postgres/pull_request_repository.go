@@ -48,7 +48,7 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 
 	var pr models.PullRequest
 	if err := tx.QueryRow(ctx,
-		"INSERT INTO pull_requests VALUES id = $1, name = $2, author_id = $3, status = $4",
+		"INSERT INTO pull_requests (id, name, author_id, status, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, name, author_id, status, created_at",
 		pullRequestID,
 		pullRequestName,
 		authorID,
@@ -63,8 +63,13 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 		return nil, err
 	}
 
+	if len(assignedReviewers) == 0 {
+		tx.Commit(ctx)
+		return &pr, nil
+	}
+
 	for _, reviewer := range assignedReviewers {
-		if _, err := tx.Query(ctx, "INSERT INTO reviewers VALUES pull_request_id = $1, reviewer_id = $2", pullRequestID, reviewer); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO reviewers (pull_request_id, reviewer_id) VALUES ($1, $2)", pullRequestID, reviewer); err != nil {
 			return nil, err
 		}
 	}
@@ -72,7 +77,6 @@ func (s *Storage) CreatePullRequest(ctx context.Context, pullRequestID, pullRequ
 	pr.AssignedReviewers = assignedReviewers
 
 	tx.Commit(ctx)
-
 	return &pr, nil
 }
 

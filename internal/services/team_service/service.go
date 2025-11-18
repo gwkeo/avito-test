@@ -2,10 +2,8 @@ package team_service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/gwkeo/avito-test/internal/models"
-	"github.com/gwkeo/avito-test/internal/storage"
 )
 
 type teamRepository interface {
@@ -30,17 +28,17 @@ func New(teamRepository teamRepository, userService userService) *TeamService {
 }
 
 func (s *TeamService) Add(ctx context.Context, team *models.Team) (*models.Team, error) {
-	_, err := s.Team(ctx, team.TeamName)
-	if err != nil && !errors.Is(err, storage.ErrNotFound) {
-		return nil, err
-	}
+	// _, err := s.Team(ctx, team.TeamName)
+	// if err != nil && !errors.Is(err, storage.ErrNotFound) {
+	// 	return nil, err
+	// }
 
-	for _, member := range team.Members {
-		_, err := s.userService.User(ctx, member.UserID)
-		if err != nil && !errors.Is(err, storage.ErrNotFound) {
-			return nil, err
-		}
-	}
+	// for _, member := range team.Members {
+	// 	_, err := s.userService.User(ctx, member.UserID)
+	// 	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+	// 		return nil, err
+	// 	}
+	// }
 
 	return s.teamRepository.AddTeam(ctx, team)
 }
