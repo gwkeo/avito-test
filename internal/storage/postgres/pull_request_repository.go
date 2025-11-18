@@ -104,7 +104,7 @@ func (s *Storage) MergePullRequest(ctx context.Context, pullRequestID string) (*
 }
 
 func (s *Storage) ReassignPullRequest(ctx context.Context, pullRequestID, oldReviewerID, newReviewerID string) (*models.PullRequest, string, error) {
-	_, err := s.db.Exec(ctx, "SELECT pull_request_id FROM pull_requests WHERE id = $1", pullRequestID)
+	_, err := s.db.Exec(ctx, "SELECT id FROM pull_requests WHERE id = $1", pullRequestID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, "", storage.ErrNotFound
