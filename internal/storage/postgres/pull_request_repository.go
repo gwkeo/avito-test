@@ -112,45 +112,47 @@ func (s *Storage) ReassignPullRequest(ctx context.Context, pullRequestID, oldRev
 		return nil, "", err
 	}
 
-	var pr models.PullRequest
-	err = s.db.QueryRow(
+	_, err = s.db.Exec(
 		ctx,
-		"UPDATE reviewers SET reviewer_id = $1 WHERE reviewer_id = $2 AND pull_request_id = $3 RETURNING id, name, author_id, status, created_at, merged_at",
+		"UPDATE reviewers SET reviewer_id = $1 WHERE reviewer_id = $2 AND pull_request_id = $3",
 		newReviewerID,
 		oldReviewerID,
 		pullRequestID,
-	).Scan(
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var pr models.PullRequest
+	err = s.db.QueryRow(ctx, `
+        SELECT 
+            pr.id,
+            pr.name,
+            pr.author_id,
+            pr.status,
+            pr.created_at,
+            pr.merged_at,
+            COALESCE(
+                ARRAY_AGG(r.reviewer_id) FILTER (WHERE r.reviewer_id IS NOT NULL),
+                ARRAY[]::TEXT[]
+            ) AS assigned_reviewers
+        FROM pull_requests pr
+        LEFT JOIN reviewers r ON pr.id = r.pull_request_id
+        WHERE pr.id = $1
+        GROUP BY pr.id, pr.name, pr.author_id, pr.status, pr.created_at, pr.merged_at
+    `, pullRequestID).Scan(
 		&pr.PullRequestID,
 		&pr.PullRequestName,
 		&pr.AuthorID,
 		&pr.Status,
 		&pr.CreatedAt,
 		&pr.MergedAt,
+		&pr.AssignedReviewers,
 	)
+
 	if err != nil {
 		return nil, "", err
 	}
-
-	rows, err := s.db.Query(ctx, "SELECT reviewer_id FROM reviewers WHERE pull_request_id = $1", pullRequestID)
-	if err != nil {
-		return nil, "", err
-	}
-	defer rows.Close()
-
-	var reviewers []string
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			return nil, "", err
-		}
-		reviewers = append(reviewers, id)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, "", err
-	}
-
-	pr.AssignedReviewers = reviewers
 
 	return &pr, newReviewerID, nil
 }
