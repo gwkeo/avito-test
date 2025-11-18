@@ -2,27 +2,20 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gwkeo/avito-test/internal/models"
 	"github.com/gwkeo/avito-test/internal/storage"
+	"github.com/jackc/pgx/v5"
 )
 
 func (s *Storage) SetIsUserActive(ctx context.Context, userID string, isActive bool) (*models.User, error) {
-	var id string
-	s.db.QueryRow(ctx, "UPDATE users SET is_active = $1 WHERE id = $2", isActive, userID).Scan(&id)
-
-	if id == "" {
-		return nil, storage.ErrNotFound
-	}
-
-	rows, err := s.db.Query(ctx, "SELECT * FROM users WHERE id = $1", userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var user models.User
-	if err = rows.Scan(&user.UserID, &user.Username, &user.TeamName, &user.IsActive); err != nil {
+	err := s.db.QueryRow(ctx, "UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id, username, is_active, team_name", isActive, userID).Scan(&user.UserID, &user.Username, &user.IsActive, &user.TeamName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, storage.ErrNotFound
+		}
 		return nil, err
 	}
 

@@ -16,11 +16,6 @@ type UserService struct {
 	UserRepository
 }
 
-// ActiveUsersByTeam implements pull_request_service.userService.
-func (s *UserService) ActiveUsersByTeam(ctx context.Context, teamID string) ([]models.User, error) {
-	panic("unimplemented")
-}
-
 func New(userRepository UserRepository) *UserService {
 	return &UserService{
 		UserRepository: userRepository,
